@@ -1,0 +1,71 @@
+name: Build FreeType + HarfBuzz for Android (All ABIs)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-font-libs:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        abi: [armeabi-v7a, arm64-v8a, x86, x86_64]
+        api: [21]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Android NDK
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r26d
+        add-to-path: true
+
+    - name: Fetch FreeType source
+      run: git clone --depth=1 https://github.com/freetype/freetype.git freetype
+
+    - name: Fetch HarfBuzz source
+      run: git clone --depth=1 https://github.com/harfbuzz/harfbuzz.git harfbuzz
+
+    - name: Build FreeType (static)
+      run: |
+        cmake -B build-freetype-${{ matrix.abi }} -S freetype \
+          -DANDROID_ABI=${{ matrix.abi }} \
+          -DANDROID_PLATFORM=android-${{ matrix.api }} \
+          -DANDROID_NDK=$ANDROID_NDK_HOME \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF
+        cmake --build build-freetype-${{ matrix.abi }} --config Release -- -j$(nproc)
+
+    - name: Build HarfBuzz (static, with FreeType)
+      run: |
+        cmake -B build-harfbuzz-${{ matrix.abi }} -S harfbuzz \
+          -DANDROID_ABI=${{ matrix.abi }} \
+          -DANDROID_PLATFORM=android-${{ matrix.api }} \
+          -DANDROID_NDK=$ANDROID_NDK_HOME \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DHB_HAVE_FREETYPE=ON \
+          -DFREETYPE_DIR=$(pwd)/build-freetype-${{ matrix.abi }}
+        cmake --build build-harfbuzz-${{ matrix.abi }} --config Release -- -j$(nproc)
+
+    - name: Collect libraries and headers
+      run: |
+        mkdir -p output/lib/${{ matrix.abi }} output/include/freetype output/include/harfbuzz
+        # Copy FreeType headers
+        cp -r freetype/include/* output/include/freetype/
+        # Copy HarfBuzz headers
+        cp -r harfbuzz/src/*.h output/include/harfbuzz/
+        # Copy compiled static libraries
+        cp build-freetype-${{ matrix.abi }}/objs/.libs/*.a output/lib/${{ matrix.abi }}/ || true
+        cp build-harfbuzz-${{ matrix.abi }}/src/*.a output/lib/${{ matrix.abi }}/ || true
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: font-libs-all-abies
+        path: output/
