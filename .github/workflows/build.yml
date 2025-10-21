@@ -30,17 +30,14 @@ jobs:
       run: |
         git clone --depth=1 https://github.com/freetype/freetype.git freetype
         git clone --depth=1 https://github.com/harfbuzz/harfbuzz.git harfbuzz
-        wget https://zlib.net/zlib-1.2.13.tar.gz -O zlib.tar.gz
-        tar xf zlib.tar.gz
+        git clone --depth=1 https://github.com/madler/zlib.git zlib
         wget https://download.sourceforge.net/libpng/libpng-1.6.40.tar.gz -O libpng.tar.gz
         tar xf libpng.tar.gz
 
     - name: Build zlib (static)
       run: |
         mkdir -p build-zlib-${{ matrix.abi }}
-        cd zlib-1.2.13
-        ANDROID_ABI=${{ matrix.abi }}
-        ANDROID_API=${{ matrix.api }}
+        cd zlib
         cmake -B ../build-zlib-${{ matrix.abi }} -S . \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=${{ matrix.abi }} \
@@ -105,7 +102,7 @@ jobs:
         cp -r freetype/include/* output/include/freetype/
         cp -r harfbuzz/src/*.h output/include/harfbuzz/
         cp -r libpng-1.6.40/png.h output/include/png/
-        cp -r zlib-1.2.13/*.h output/include/zlib/
+        cp -r zlib/*.h output/include/zlib/
         cp build-freetype-${{ matrix.abi }}/objs/.libs/*.a output/lib/${{ matrix.abi }}/ || true
         cp build-harfbuzz-${{ matrix.abi }}/src/*.a output/lib/${{ matrix.abi }}/ || true
         cp build-libpng-${{ matrix.abi }}/libpng16.a output/lib/${{ matrix.abi }}/
@@ -113,8 +110,7 @@ jobs:
 
     - name: Create single ZIP (only once)
       if: ${{ matrix.abi == 'x86_64' }}
-      run: |
-        zip -r font-libs-android-full.zip output
+      run: zip -r font-libs-android-full.zip output
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
