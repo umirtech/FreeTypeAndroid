@@ -17,7 +17,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Install build dependencies
       run: sudo apt-get update && sudo apt-get install -y git cmake ninja-build wget tar
 
     - name: Set up Android NDK
@@ -57,8 +57,12 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF \
           -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
-          -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }}/
+          -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }}
         cmake --build ../build-libpng-${{ matrix.abi }} -- -j$(nproc)
+
+        # Copy headers to a dedicated include folder
+        mkdir -p ../build-libpng-${{ matrix.abi }}/include
+        cp *.h ../build-libpng-${{ matrix.abi }}/include/
 
     - name: Build FreeType (all features)
       run: |
@@ -74,9 +78,9 @@ jobs:
           -DFT_WITH_PNG=ON \
           -DFT_WITH_BZIP2=ON \
           -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
-          -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }}/ \
+          -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }} \
           -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
-          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/
+          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/include
         cmake --build . --config Release -- -j$(nproc)
 
     - name: Build HarfBuzz (all features, link FreeType + PNG)
@@ -93,22 +97,30 @@ jobs:
           -DHB_HAVE_PNG=ON \
           -DFREETYPE_DIR=$(pwd)/../build-freetype-${{ matrix.abi }} \
           -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
-          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/
+          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/include
         cmake --build . --config Release -- -j$(nproc)
 
     - name: Collect libraries and headers
       run: |
-        mkdir -p output/lib/${{ matrix.abi }} output/include/freetype output/include/harfbuzz output/include/png output/include/zlib
+        mkdir -p output/lib/${{ matrix.abi }} \
+                 output/include/freetype \
+                 output/include/harfbuzz \
+                 output/include/png \
+                 output/include/zlib
+
+        # Headers
         cp -r freetype/include/* output/include/freetype/
         cp -r harfbuzz/src/*.h output/include/harfbuzz/
         cp -r libpng-1.6.40/png.h output/include/png/
         cp -r zlib/*.h output/include/zlib/
+
+        # Static libs
         cp build-freetype-${{ matrix.abi }}/objs/.libs/*.a output/lib/${{ matrix.abi }}/ || true
         cp build-harfbuzz-${{ matrix.abi }}/src/*.a output/lib/${{ matrix.abi }}/ || true
         cp build-libpng-${{ matrix.abi }}/libpng16.a output/lib/${{ matrix.abi }}/
         cp build-zlib-${{ matrix.abi }}/libz.a output/lib/${{ matrix.abi }}/
 
-    - name: Create single ZIP (only once)
+    - name: Create single ZIP (once after last ABI)
       if: ${{ matrix.abi == 'x86_64' }}
       run: zip -r font-libs-android-full.zip output
 
