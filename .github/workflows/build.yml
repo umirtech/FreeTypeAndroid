@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        abi: [armeabi-v7a]
+        abi: [armeabi-v7a, arm64-v8a, x86, x86_64]
         api: [21]
 
     steps:
@@ -95,8 +95,9 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF \
           -DHB_HAVE_FREETYPE=ON \
+          -DFREETYPE_LIBRARY=$(pwd)/../build-freetype-${{ matrix.abi }}/objs/.libs/libfreetype.a \
+          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../freetype/include \
           -DHB_HAVE_PNG=ON \
-          -DFREETYPE_DIR=$(pwd)/../build-freetype-${{ matrix.abi }} \
           -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
           -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/include
         cmake --build . --config Release -- -j$(nproc)
