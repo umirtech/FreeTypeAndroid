@@ -1,4 +1,4 @@
-name: Build FreeType + HarfBuzz for Android (All ABIs)
+name: Build FreeType + HarfBuzz + PNG/Zlib for Android (All ABIs)
 
 on:
   workflow_dispatch:
@@ -17,55 +17,107 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y git cmake ninja-build wget tar
+
     - name: Set up Android NDK
       uses: nttld/setup-ndk@v1
       with:
         ndk-version: r26d
         add-to-path: true
 
-    - name: Fetch FreeType source
-      run: git clone --depth=1 https://github.com/freetype/freetype.git freetype
-
-    - name: Fetch HarfBuzz source
-      run: git clone --depth=1 https://github.com/harfbuzz/harfbuzz.git harfbuzz
-
-    - name: Build FreeType (static)
+    - name: Fetch sources
       run: |
-        cmake -B build-freetype-${{ matrix.abi }} -S freetype \
+        git clone --depth=1 https://github.com/freetype/freetype.git freetype
+        git clone --depth=1 https://github.com/harfbuzz/harfbuzz.git harfbuzz
+        wget https://zlib.net/zlib-1.2.13.tar.gz -O zlib.tar.gz
+        tar xf zlib.tar.gz
+        wget https://download.sourceforge.net/libpng/libpng-1.6.40.tar.gz -O libpng.tar.gz
+        tar xf libpng.tar.gz
+
+    - name: Build zlib (static)
+      run: |
+        mkdir -p build-zlib-${{ matrix.abi }}
+        cd zlib-1.2.13
+        ANDROID_ABI=${{ matrix.abi }}
+        ANDROID_API=${{ matrix.api }}
+        cmake -B ../build-zlib-${{ matrix.abi }} -S . \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=${{ matrix.abi }} \
           -DANDROID_PLATFORM=android-${{ matrix.api }} \
-          -DANDROID_NDK=$ANDROID_NDK_HOME \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF
-        cmake --build build-freetype-${{ matrix.abi }} --config Release -- -j$(nproc)
+        cmake --build ../build-zlib-${{ matrix.abi }} -- -j$(nproc)
 
-    - name: Build HarfBuzz (static, with FreeType)
+    - name: Build libpng (static, link zlib)
       run: |
-        cmake -B build-harfbuzz-${{ matrix.abi }} -S harfbuzz \
+        mkdir -p build-libpng-${{ matrix.abi }}
+        cd libpng-1.6.40
+        cmake -B ../build-libpng-${{ matrix.abi }} -S . \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=${{ matrix.abi }} \
           -DANDROID_PLATFORM=android-${{ matrix.api }} \
-          -DANDROID_NDK=$ANDROID_NDK_HOME \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
+          -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }}/
+        cmake --build ../build-libpng-${{ matrix.abi }} -- -j$(nproc)
+
+    - name: Build FreeType (all features)
+      run: |
+        mkdir -p build-freetype-${{ matrix.abi }}
+        cd build-freetype-${{ matrix.abi }}
+        cmake ../freetype \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=${{ matrix.abi }} \
+          -DANDROID_PLATFORM=android-${{ matrix.api }} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DFT_WITH_ZLIB=ON \
+          -DFT_WITH_PNG=ON \
+          -DFT_WITH_BZIP2=ON \
+          -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
+          -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }}/ \
+          -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
+          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/
+        cmake --build . --config Release -- -j$(nproc)
+
+    - name: Build HarfBuzz (all features, link FreeType + PNG)
+      run: |
+        mkdir -p build-harfbuzz-${{ matrix.abi }}
+        cd build-harfbuzz-${{ matrix.abi }}
+        cmake ../harfbuzz \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=${{ matrix.abi }} \
+          -DANDROID_PLATFORM=android-${{ matrix.api }} \
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF \
           -DHB_HAVE_FREETYPE=ON \
-          -DFREETYPE_DIR=$(pwd)/build-freetype-${{ matrix.abi }}
-        cmake --build build-harfbuzz-${{ matrix.abi }} --config Release -- -j$(nproc)
+          -DHB_HAVE_PNG=ON \
+          -DFREETYPE_DIR=$(pwd)/../build-freetype-${{ matrix.abi }} \
+          -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
+          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/
+        cmake --build . --config Release -- -j$(nproc)
 
     - name: Collect libraries and headers
       run: |
-        mkdir -p output/lib/${{ matrix.abi }} output/include/freetype output/include/harfbuzz
-        # Copy FreeType headers
+        mkdir -p output/lib/${{ matrix.abi }} output/include/freetype output/include/harfbuzz output/include/png output/include/zlib
         cp -r freetype/include/* output/include/freetype/
-        # Copy HarfBuzz headers
         cp -r harfbuzz/src/*.h output/include/harfbuzz/
-        # Copy compiled static libraries
+        cp -r libpng-1.6.40/png.h output/include/png/
+        cp -r zlib-1.2.13/*.h output/include/zlib/
         cp build-freetype-${{ matrix.abi }}/objs/.libs/*.a output/lib/${{ matrix.abi }}/ || true
         cp build-harfbuzz-${{ matrix.abi }}/src/*.a output/lib/${{ matrix.abi }}/ || true
+        cp build-libpng-${{ matrix.abi }}/libpng16.a output/lib/${{ matrix.abi }}/
+        cp build-zlib-${{ matrix.abi }}/libz.a output/lib/${{ matrix.abi }}/
+
+    - name: Create single ZIP (only once)
+      if: ${{ matrix.abi == 'x86_64' }}
+      run: |
+        zip -r font-libs-android-full.zip output
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: font-libs-all-abies
-        path: output/
+        name: font-libs-android-full
+        path: font-libs-android-full.zip
