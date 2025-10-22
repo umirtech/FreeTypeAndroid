@@ -1,4 +1,4 @@
-name: Build FreeType + HarfBuzz + PNG/Zlib for Android (Matrix ABIs, fPIC, 16KB page)
+name: Build FreeType + HarfBuzz + PNG/Zlib + MSDFGen for Android (Matrix ABIs, fPIC, 16KB page)
 
 on:
   workflow_dispatch:
@@ -29,9 +29,11 @@ jobs:
         git clone --depth=1 https://github.com/freetype/freetype.git freetype
         git clone --depth=1 https://github.com/harfbuzz/harfbuzz.git harfbuzz
         git clone --depth=1 https://github.com/madler/zlib.git zlib
+        git clone --depth=1 https://github.com/Chlumsky/msdfgen.git msdfgen
         wget https://download.sourceforge.net/libpng/libpng-1.6.40.tar.gz -O libpng.tar.gz
         tar xf libpng.tar.gz
 
+    # --- Existing builds for zlib, libpng, FreeType, HarfBuzz ---
     - name: Build zlib
       run: |
         mkdir -p build-zlib-${{ matrix.abi }}
@@ -64,7 +66,6 @@ jobs:
           -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
           -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }}
         cmake --build ../build-libpng-${{ matrix.abi }} -- -j$(nproc)
-
         mkdir -p ../build-libpng-${{ matrix.abi }}/include
         cp *.h ../build-libpng-${{ matrix.abi }}/include/
         cp ../build-libpng-${{ matrix.abi }}/pnglibconf.h ../build-libpng-${{ matrix.abi }}/include/
@@ -115,13 +116,32 @@ jobs:
         cmake --build . --config Release -- -j$(nproc)
         cd ..
 
+    # --- New Step: Build MSDFGen ---
+    - name: Build MSDFGen
+      run: |
+        mkdir -p build-msdfgen-${{ matrix.abi }}
+        cd build-msdfgen-${{ matrix.abi }}
+        cmake ../msdfgen \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=${{ matrix.abi }} \
+          -DANDROID_PLATFORM=android-21 \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          -DCMAKE_ANDROID_PAGE_SIZE=16384 \
+          -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22 \
+          -DMSDFGEN_USE_FREETYPE=ON
+        cmake --build . -- -j$(nproc)
+        cd ..
+
     - name: Collect headers and libraries
       run: |
         mkdir -p output/lib/${{ matrix.abi }} \
                  output/include/freetype \
                  output/include/harfbuzz \
                  output/include/png \
-                 output/include/zlib
+                 output/include/zlib \
+                 output/include/msdfgen
 
         # Headers
         cp -r freetype/include/* output/include/freetype/
@@ -129,15 +149,18 @@ jobs:
         cp -r libpng-1.6.40/png.h output/include/png/
         cp -r zlib/*.h output/include/zlib/
         cp build-libpng-${{ matrix.abi }}/include/pnglibconf.h output/include/png/
+        cp -r msdfgen/msdfgen/*.h output/include/msdfgen/
 
         # Static libraries
         FT_LIB=$(find build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
         HB_LIB=$(find build-harfbuzz-${{ matrix.abi }} -name "libharfbuzz.a" | head -n1)
+        MSDF_LIB=$(find build-msdfgen-${{ matrix.abi }} -name "libmsdfgen.a" | head -n1)
 
         cp "$FT_LIB" output/lib/${{ matrix.abi }}/
         cp "$HB_LIB" output/lib/${{ matrix.abi }}/
         cp build-libpng-${{ matrix.abi }}/libpng16.a output/lib/${{ matrix.abi }}/
         cp build-zlib-${{ matrix.abi }}/libz.a output/lib/${{ matrix.abi }}/
+        cp "$MSDF_LIB" output/lib/${{ matrix.abi }}/
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
