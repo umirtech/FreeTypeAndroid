@@ -121,6 +121,8 @@ jobs:
       run: |
         mkdir -p build-msdfgen-${{ matrix.abi }}
         cd build-msdfgen-${{ matrix.abi }}
+        FREETYPE_LIB=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
+        FREETYPE_INC=$(realpath ../freetype/include)
         cmake ../msdfgen \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=${{ matrix.abi }} \
