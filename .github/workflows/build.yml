@@ -31,7 +31,6 @@ jobs:
         git clone --depth=1 https://github.com/madler/zlib.git zlib
         wget https://download.sourceforge.net/libpng/libpng-1.6.40.tar.gz -O libpng.tar.gz
         tar xf libpng.tar.gz
-        git clone --depth=1 https://github.com/memononen/libtess2.git libtess2
 
     - name: Build zlib
       run: |
@@ -115,47 +114,28 @@ jobs:
           -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/include
         cmake --build . --config Release -- -j$(nproc)
         cd ..
-        
-    - name: Build libtess2
-      run: |
-        mkdir -p build-libtess2-${{ matrix.abi }}
-        cd libtess2
-        cmake -B ../build-libtess2-${{ matrix.abi }} -S . \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=${{ matrix.abi }} \
-          -DANDROID_PLATFORM=android-21 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=OFF \
-          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-          -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22
-        cmake --build ../build-libtess2-${{ matrix.abi }} -- -j$(nproc)
-        cd ..
-        
+
     - name: Collect headers and libraries
       run: |
         mkdir -p output/lib/${{ matrix.abi }} \
                  output/include/freetype \
                  output/include/harfbuzz \
                  output/include/png \
-                 output/include/zlib \
-                 output/include/libtess2
+                 output/include/zlib
+
         # Headers
         cp -r freetype/include/* output/include/freetype/
         cp -r harfbuzz/src/*.h output/include/harfbuzz/
         cp -r libpng-1.6.40/png.h output/include/png/
         cp -r zlib/*.h output/include/zlib/
         cp build-libpng-${{ matrix.abi }}/include/pnglibconf.h output/include/png/
-        cp -r libtess2/include/* output/include/libtess2/
 
         # Static libraries
         FT_LIB=$(find build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
         HB_LIB=$(find build-harfbuzz-${{ matrix.abi }} -name "libharfbuzz.a" | head -n1)
-        TESS_LIB=$(find build-libtess2-${{ matrix.abi }} -name "libtess2.a" | head -n1)
 
         cp "$FT_LIB" output/lib/${{ matrix.abi }}/
         cp "$HB_LIB" output/lib/${{ matrix.abi }}/
-        cp "$TESS_LIB" output/lib/${{ matrix.abi }}/
         cp build-libpng-${{ matrix.abi }}/libpng16.a output/lib/${{ matrix.abi }}/
         cp build-zlib-${{ matrix.abi }}/libz.a output/lib/${{ matrix.abi }}/
 
