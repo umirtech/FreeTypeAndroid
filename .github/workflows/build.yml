@@ -29,7 +29,6 @@ jobs:
         git clone --depth=1 https://github.com/freetype/freetype.git freetype
         git clone --depth=1 https://github.com/harfbuzz/harfbuzz.git harfbuzz
         git clone --depth=1 https://github.com/madler/zlib.git zlib
-        git clone --depth=1 https://github.com/Chlumsky/msdfgen.git msdfgen
         wget https://download.sourceforge.net/libpng/libpng-1.6.40.tar.gz -O libpng.tar.gz
         tar xf libpng.tar.gz
 
@@ -116,70 +115,31 @@ jobs:
         cmake --build . --config Release -- -j$(nproc)
         cd ..
 
-    # --- New Step: Build MSDFGen ---
-    - name: Build MSDFGen
-      run: |
-        mkdir -p build-msdfgen-${{ matrix.abi }}
-        cd build-msdfgen-${{ matrix.abi }}
-        FREETYPE_LIB=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
-        FREETYPE_INC=$(realpath ../freetype/include)
-        cmake ../msdfgen \
-          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=${{ matrix.abi }} \
-          -DANDROID_PLATFORM=android-21 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=OFF \
-          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-          -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22 \
-          -DMSDFGEN_USE_FREETYPE=ON \
-          -DMSDFGEN_DISABLE_SVG=ON \
-          -DMSDFGEN_DISABLE_PNG=ON \
-          -DMSDFGEN_USE_SKIA=OFF \
-          -DMSDFGEN_BUILD_STANDALONE=OFF \
-          -DFREETYPE_LIBRARY=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1) \
-          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../freetype/include 
-        cmake --build . -- -j$(nproc)
-        cd ..
-
     - name: Collect headers and libraries
       run: |
         mkdir -p output/lib/${{ matrix.abi }} \
                  output/include/freetype \
                  output/include/harfbuzz \
                  output/include/png \
-                 output/include/zlib \
-                 output/include/msdfgen \
-                 output/include/msdfgen/core
+                 output/include/zlib 
 
         # Headers
         cp -r freetype/include/* output/include/freetype/
         cp -r harfbuzz/src/*.h output/include/harfbuzz/
         cp -r libpng-1.6.40/png.h output/include/png/
         cp -r zlib/*.h output/include/zlib/
-        cp -r msdfgen/msdfgen.h output/include/msdfgen/
-        cp -r msdfgen/core/*.h output/include/msdfgen/core/
-        cp -r msdfgen/core/*.hpp output/include/msdfgen/core/
 
         # Generated Build Headers
         cp build-libpng-${{ matrix.abi }}/include/pnglibconf.h output/include/png/
-        CONFIG_FILE=$(find build-msdfgen-${{ matrix.abi }} -name "msdfgen-config.h" | head -n1)
-        if [ -n "$CONFIG_FILE" ]; then
-          cp "$CONFIG_FILE" output/include/msdfgen/
-        else
-          echo "Warning: msdfgen-config.h not found, skipping."
-        fi
 
         # Static libraries
         FT_LIB=$(find build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
         HB_LIB=$(find build-harfbuzz-${{ matrix.abi }} -name "libharfbuzz.a" | head -n1)
-        MSDF_LIB=$(find build-msdfgen-${{ matrix.abi }} -name "libmsdfgen-core.a" | head -n1)
 
         cp "$FT_LIB" output/lib/${{ matrix.abi }}/
         cp "$HB_LIB" output/lib/${{ matrix.abi }}/
         cp build-libpng-${{ matrix.abi }}/libpng16.a output/lib/${{ matrix.abi }}/
         cp build-zlib-${{ matrix.abi }}/libz.a output/lib/${{ matrix.abi }}/
-        cp "$MSDF_LIB" output/lib/${{ matrix.abi }}/
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
