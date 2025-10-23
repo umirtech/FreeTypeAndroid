@@ -11,6 +11,7 @@ jobs:
     strategy:
       matrix:
         abi: [armeabi-v7a, arm64-v8a, x86, x86_64]
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -33,12 +34,12 @@ jobs:
         wget https://download.sourceforge.net/libpng/libpng-1.6.40.tar.gz -O libpng.tar.gz
         tar xf libpng.tar.gz
 
-    # --- Existing builds for zlib, libpng, FreeType, HarfBuzz ---
+    # --- Build zlib ---
     - name: Build zlib
       run: |
         mkdir -p build-zlib-${{ matrix.abi }}
-        cd zlib
-        cmake -B ../build-zlib-${{ matrix.abi }} -S . \
+        cd build-zlib-${{ matrix.abi }}
+        cmake ../zlib \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=${{ matrix.abi }} \
           -DANDROID_PLATFORM=android-21 \
@@ -46,10 +47,12 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22
-        cmake --build ../build-zlib-${{ matrix.abi }} -- -j$(nproc)
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
+        cmake --build . -- -j$(nproc)
+        cmake --install .
         cd ..
 
+    # --- Build libpng ---
     - name: Build libpng
       run: |
         mkdir -p build-libpng-${{ matrix.abi }}
@@ -62,15 +65,14 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22 \
           -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
-          -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }}
+          -DZLIB_INCLUDE_DIR=$(pwd)/../install/include \
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
         cmake --build ../build-libpng-${{ matrix.abi }} -- -j$(nproc)
-        mkdir -p ../build-libpng-${{ matrix.abi }}/include
-        cp *.h ../build-libpng-${{ matrix.abi }}/include/
-        cp ../build-libpng-${{ matrix.abi }}/pnglibconf.h ../build-libpng-${{ matrix.abi }}/include/
+        cmake --install ../build-libpng-${{ matrix.abi }}
         cd ..
 
+    # --- Build FreeType ---
     - name: Build FreeType
       run: |
         mkdir -p build-freetype-${{ matrix.abi }}
@@ -83,17 +85,18 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22 \
           -DFT_WITH_ZLIB=ON \
           -DFT_WITH_PNG=ON \
-          -DFT_WITH_BZIP2=ON \
           -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
-          -DZLIB_INCLUDE_DIR=$(pwd)/../build-zlib-${{ matrix.abi }} \
+          -DZLIB_INCLUDE_DIR=$(pwd)/../install/include \
           -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
-          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/include
-        cmake --build . --config Release -- -j$(nproc)
+          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../install/include \
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
+        cmake --build . -- -j$(nproc)
+        cmake --install .
         cd ..
 
+    # --- Build HarfBuzz ---
     - name: Build HarfBuzz
       run: |
         mkdir -p build-harfbuzz-${{ matrix.abi }}
@@ -106,23 +109,22 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22 \
           -DHB_HAVE_FREETYPE=ON \
-          -DFREETYPE_LIBRARY=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1) \
-          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../freetype/include \
+          -DFREETYPE_LIBRARY=$(pwd)/../install/lib/libfreetype.a \
+          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../install/include \
           -DHB_HAVE_PNG=ON \
-          -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
-          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/include
-        cmake --build . --config Release -- -j$(nproc)
+          -DPNG_LIBRARY=$(pwd)/../install/lib/libpng16.a \
+          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../install/include \
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
+        cmake --build . -- -j$(nproc)
+        cmake --install .
         cd ..
 
-    # --- New Step: Build MSDFGen ---
+    # --- Build MSDFGen ---
     - name: Build MSDFGen
       run: |
         mkdir -p build-msdfgen-${{ matrix.abi }}
         cd build-msdfgen-${{ matrix.abi }}
-        FREETYPE_LIB=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
-        FREETYPE_INC=$(realpath ../freetype/include)
         cmake ../msdfgen \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=${{ matrix.abi }} \
@@ -131,48 +133,22 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22 \
           -DMSDFGEN_USE_FREETYPE=ON \
           -DMSDFGEN_DISABLE_SVG=ON \
           -DMSDFGEN_DISABLE_PNG=ON \
           -DMSDFGEN_CORE_ONLY=ON \
           -DMSDFGEN_USE_SKIA=OFF \
           -DMSDFGEN_BUILD_STANDALONE=OFF \
-          -DFREETYPE_LIBRARY=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1) \
-          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../freetype/include 
+          -DFREETYPE_LIBRARY=$(pwd)/../install/lib/libfreetype.a \
+          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../install/include \
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
         cmake --build . -- -j$(nproc)
+        cmake --install .
         cd ..
 
-    - name: Collect headers and libraries
-      run: |
-        mkdir -p output/lib/${{ matrix.abi }} \
-                 output/include/freetype \
-                 output/include/harfbuzz \
-                 output/include/png \
-                 output/include/zlib \
-                 output/include/msdfgen
-
-        # Headers
-        cp -r freetype/include/* output/include/freetype/
-        cp -r harfbuzz/src/*.h output/include/harfbuzz/
-        cp -r libpng-1.6.40/png.h output/include/png/
-        cp -r zlib/*.h output/include/zlib/
-        cp build-libpng-${{ matrix.abi }}/include/pnglibconf.h output/include/png/
-        cp -r msdfgen/core/*.h output/include/msdfgen/
-
-        # Static libraries
-        FT_LIB=$(find build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
-        HB_LIB=$(find build-harfbuzz-${{ matrix.abi }} -name "libharfbuzz.a" | head -n1)
-        MSDF_LIB=$(find build-msdfgen-${{ matrix.abi }} -name "libmsdfgen-core.a" | head -n1)
-
-        cp "$FT_LIB" output/lib/${{ matrix.abi }}/
-        cp "$HB_LIB" output/lib/${{ matrix.abi }}/
-        cp build-libpng-${{ matrix.abi }}/libpng16.a output/lib/${{ matrix.abi }}/
-        cp build-zlib-${{ matrix.abi }}/libz.a output/lib/${{ matrix.abi }}/
-        cp "$MSDF_LIB" output/lib/${{ matrix.abi }}/
-
+    # --- Upload artifact ---
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: font-libs-android-${{ matrix.abi }}
-        path: output
+        path: install
