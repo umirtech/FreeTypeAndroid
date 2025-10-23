@@ -135,7 +135,6 @@ jobs:
           -DMSDFGEN_USE_FREETYPE=ON \
           -DMSDFGEN_DISABLE_SVG=ON \
           -DMSDFGEN_DISABLE_PNG=ON \
-          -DMSDFGEN_CORE_ONLY=ON \
           -DMSDFGEN_USE_SKIA=OFF \
           -DMSDFGEN_BUILD_STANDALONE=OFF \
           -DFREETYPE_LIBRARY=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1) \
