@@ -111,7 +111,7 @@ jobs:
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
           -DHB_HAVE_FREETYPE=ON \
           -DFREETYPE_LIBRARY=$(pwd)/../install/lib/libfreetype.a \
-          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../install/include \
+          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../install/include/freetype2 \
           -DHB_HAVE_PNG=ON \
           -DPNG_LIBRARY=$(pwd)/../install/lib/libpng16.a \
           -DPNG_PNG_INCLUDE_DIR=$(pwd)/../install/include \
