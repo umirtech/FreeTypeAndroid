@@ -158,7 +158,7 @@ jobs:
         cp -r libpng-1.6.40/png.h output/include/png/
         cp -r zlib/*.h output/include/zlib/
         cp build-libpng-${{ matrix.abi }}/include/pnglibconf.h output/include/png/
-        cp -r msdfgen/msdfgen/*.h output/include/msdfgen/
+        cp -r msdfgen/core/*.h output/include/msdfgen/
 
         # Static libraries
         FT_LIB=$(find build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
