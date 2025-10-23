@@ -132,7 +132,7 @@ jobs:
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
           -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22 \
-          -DMSDFGEN_USE_FREETYPE=ON
+          -DMSDFGEN_USE_FREETYPE=ON \
           -DFREETYPE_LIBRARY=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1) \
           -DFREETYPE_INCLUDE_DIRS=$(pwd)/../freetype/include \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH \
