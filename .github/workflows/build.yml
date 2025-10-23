@@ -29,7 +29,7 @@ jobs:
         git clone --depth=1 https://github.com/freetype/freetype.git freetype
         git clone --depth=1 https://github.com/harfbuzz/harfbuzz.git harfbuzz
         git clone --depth=1 https://github.com/madler/zlib.git zlib
-        git clone --depth=1 https://github.com/Chlumsky/msdfgen.git msdfgen
+        git clone --recursive https://github.com/Chlumsky/msdfgen.git msdfgen
         wget https://download.sourceforge.net/libpng/libpng-1.6.40.tar.gz -O libpng.tar.gz
         tar xf libpng.tar.gz
 
