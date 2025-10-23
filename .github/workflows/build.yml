@@ -140,7 +140,7 @@ jobs:
           -DMSDFGEN_USE_SKIA=OFF \
           -DMSDFGEN_BUILD_STANDALONE=OFF \
           -DFREETYPE_LIBRARY=$(pwd)/../install/lib/libfreetype.a \
-          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../install/include \
+          -DFREETYPE_INCLUDE_DIRS=$(pwd)/../install/include/freetype2 \
           -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
         cmake --build . -- -j$(nproc)
         cmake --install .
