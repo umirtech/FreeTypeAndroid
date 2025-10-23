@@ -164,7 +164,7 @@ jobs:
 
         # Generated Build Headers
         cp build-libpng-${{ matrix.abi }}/include/pnglibconf.h output/include/png/
-        cp build-msdfgen-${{ matrix.abi }}/cmake/msdfgen-config.h output/include/msdfgen/
+        cp build-msdfgen-${{ matrix.abi }}/include//msdfgen-config.h output/include/msdfgen/
 
         # Static libraries
         FT_LIB=$(find build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
