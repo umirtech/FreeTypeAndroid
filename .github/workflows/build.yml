@@ -163,7 +163,7 @@ jobs:
         # Static libraries
         FT_LIB=$(find build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
         HB_LIB=$(find build-harfbuzz-${{ matrix.abi }} -name "libharfbuzz.a" | head -n1)
-        MSDF_LIB=$(find build-msdfgen-${{ matrix.abi }} -name "libmsdfgen.a" | head -n1)
+        MSDF_LIB=$(find build-msdfgen-${{ matrix.abi }} -name "libmsdfgen-core.a" | head -n1)
 
         cp "$FT_LIB" output/lib/${{ matrix.abi }}/
         cp "$HB_LIB" output/lib/${{ matrix.abi }}/
