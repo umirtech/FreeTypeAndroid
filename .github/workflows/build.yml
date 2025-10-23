@@ -164,7 +164,12 @@ jobs:
 
         # Generated Build Headers
         cp build-libpng-${{ matrix.abi }}/include/pnglibconf.h output/include/png/
-        cp build-msdfgen-${{ matrix.abi }}/include/msdfgen-config.h output/include/msdfgen/
+        CONFIG_FILE=$(find build-msdfgen-${{ matrix.abi }} -name "msdfgen-config.h" | head -n1)
+        if [ -n "$CONFIG_FILE" ]; then
+          cp "$CONFIG_FILE" output/include/msdfgen/
+        else
+          echo "Warning: msdfgen-config.h not found, skipping."
+        fi
 
         # Static libraries
         FT_LIB=$(find build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1)
