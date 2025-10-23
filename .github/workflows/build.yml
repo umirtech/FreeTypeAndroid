@@ -1,4 +1,4 @@
-name: Build FreeType + HarfBuzz + PNG/Zlib + MSDFGen for Android (Matrix ABIs, fPIC, 16KB page)
+name: Build FreeType + HarfBuzz + PNG/Zlib + MSDFGen for Android (Static, Organized)
 
 on:
   workflow_dispatch:
@@ -47,7 +47,9 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install \
+          -DCMAKE_INSTALL_INCLUDEDIR=include/zlib \
+          -DCMAKE_INSTALL_LIBDIR=lib
         cmake --build . -- -j$(nproc)
         cmake --install .
         cd ..
@@ -65,9 +67,11 @@ jobs:
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
-          -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
-          -DZLIB_INCLUDE_DIR=$(pwd)/../install/include \
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
+          -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/lib/libz.a \
+          -DZLIB_INCLUDE_DIR=$(pwd)/../install/include/zlib \
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install \
+          -DCMAKE_INSTALL_INCLUDEDIR=include/png \
+          -DCMAKE_INSTALL_LIBDIR=lib
         cmake --build ../build-libpng-${{ matrix.abi }} -- -j$(nproc)
         cmake --install ../build-libpng-${{ matrix.abi }}
         cd ..
@@ -87,11 +91,13 @@ jobs:
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
           -DFT_WITH_ZLIB=ON \
           -DFT_WITH_PNG=ON \
-          -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/libz.a \
-          -DZLIB_INCLUDE_DIR=$(pwd)/../install/include \
-          -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
-          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../install/include \
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
+          -DZLIB_LIBRARY=$(pwd)/../build-zlib-${{ matrix.abi }}/lib/libz.a \
+          -DZLIB_INCLUDE_DIR=$(pwd)/../install/include/zlib \
+          -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/lib/libpng16.a \
+          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../install/include/png \
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install \
+          -DCMAKE_INSTALL_INCLUDEDIR=include/freetype \
+          -DCMAKE_INSTALL_LIBDIR=lib
         cmake --build . -- -j$(nproc)
         cmake --install .
         cd ..
@@ -114,8 +120,10 @@ jobs:
           -DFREETYPE_INCLUDE_DIRS=$(pwd)/../install/include/freetype2 \
           -DHB_HAVE_PNG=ON \
           -DPNG_LIBRARY=$(pwd)/../install/lib/libpng16.a \
-          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../install/include \
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
+          -DPNG_PNG_INCLUDE_DIR=$(pwd)/../install/include/png \
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install \
+          -DCMAKE_INSTALL_INCLUDEDIR=include/harfbuzz \
+          -DCMAKE_INSTALL_LIBDIR=lib
         cmake --build . -- -j$(nproc)
         cmake --install .
         cd ..
@@ -141,7 +149,9 @@ jobs:
           -DMSDFGEN_BUILD_STANDALONE=OFF \
           -DFREETYPE_LIBRARY=$(pwd)/../install/lib/libfreetype.a \
           -DFREETYPE_INCLUDE_DIRS=$(pwd)/../install/include/freetype2 \
-          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install
+          -DCMAKE_INSTALL_PREFIX=$(pwd)/../install \
+          -DCMAKE_INSTALL_INCLUDEDIR=include/msdfgen \
+          -DCMAKE_INSTALL_LIBDIR=lib
         cmake --build . -- -j$(nproc)
         cmake --install .
         cd ..
