@@ -29,7 +29,7 @@ jobs:
         git clone --depth=1 https://github.com/freetype/freetype.git freetype
         git clone --depth=1 https://github.com/harfbuzz/harfbuzz.git harfbuzz
         git clone --depth=1 https://github.com/madler/zlib.git zlib
-        git clone --recursive https://github.com/Chlumsky/msdfgen.git msdfgen
+        git clone --depth=1 https://github.com/Chlumsky/msdfgen.git msdfgen
         wget https://download.sourceforge.net/libpng/libpng-1.6.40.tar.gz -O libpng.tar.gz
         tar xf libpng.tar.gz
 
@@ -133,6 +133,9 @@ jobs:
           -DCMAKE_ANDROID_PAGE_SIZE=16384 \
           -DCMAKE_MINIMUM_REQUIRED_VERSION=3.22 \
           -DMSDFGEN_USE_FREETYPE=ON \
+          -DMSDFGEN_DISABLE_SVG=ON \
+          -DMSDFGEN_DISABLE_PNG=ON \
+          -DMSDFGEN_BUILD_STANDALONE=OFF \
           -DFREETYPE_LIBRARY=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1) \
           -DFREETYPE_INCLUDE_DIRS=$(pwd)/../freetype/include 
         cmake --build . -- -j$(nproc)
