@@ -122,6 +122,8 @@ jobs:
       run: |
         mkdir -p build-freetype-gl-${{ matrix.abi }}
         cd build-freetype-gl-${{ matrix.abi }}
+    
+        # Configure CMake
         cmake ../freetype-gl \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=${{ matrix.abi }} \
@@ -134,7 +136,12 @@ jobs:
           -DFT_INCLUDE_DIR=$(pwd)/../freetype/include \
           -DFT_LIBRARY=$(find ../build-freetype-${{ matrix.abi }} -name "libfreetype.a" | head -n1) \
           -DPNG_INCLUDE_DIR=$(pwd)/../build-libpng-${{ matrix.abi }}/include \
-          -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a
+          -DPNG_LIBRARY=$(pwd)/../build-libpng-${{ matrix.abi }}/libpng16.a \
+          -DOPENGL_gl_LIBRARY=$(find_library(GLESv3)) \
+          -DEGL_LIBRARY=$(find_library(EGL)) \
+          -DOPENGL_FOUND=TRUE
+    
+        # Build
         cmake --build . --config Release -- -j$(nproc)
         cd ..
 
